@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brazil’s tax treaty network — technical services — clause-wording graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  :root{
+    --paper:#FAFAF7; --ink:#23211E; --ink-soft:#5A564E; --line:#E2DFD6; --line-strong:#C9C5BA;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;display:flex;flex-direction:column;height:100vh;background:var(--paper);color:var(--ink);font-family:"Libre Baskerville",Georgia,serif;overflow:hidden;}
+  header{flex:none;padding:10px clamp(14px,3vw,32px) 8px;border-bottom:2px solid var(--ink);}
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px;}
+  h1{font-family:"Bebas Neue",sans-serif;font-weight:400;font-size:clamp(19px,3.4vw,32px);line-height:.9;letter-spacing:.01em;margin:0;text-transform:uppercase;}
+  .sub{font-size:12.5px;color:var(--ink-soft);font-style:italic;margin:6px 0 0;max-width:80ch;}
+  .wrap{display:flex;flex:1;min-height:0;position:relative;}
+  #graph{flex:1;min-width:0;min-height:0;background:#FFFFFF;}
+  aside{width:clamp(200px,23vw,280px);border-left:1px solid var(--line-strong);padding:12px clamp(12px,1.5vw,18px);overflow-y:auto;background:#F2F1EC;}
+  aside h2{font-family:"Bebas Neue",sans-serif;font-size:20px;letter-spacing:.03em;margin:0 0 4px;text-transform:uppercase;}
+  aside .hint{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-soft);letter-spacing:.03em;line-height:1.6;margin-bottom:14px;}
+  .panel{border:1px solid var(--line-strong);background:#FFFFFF;padding:12px 13px;margin-bottom:14px;display:none;}
+  .panel.show{display:block;}
+  .panel .pn{font-family:"Bebas Neue",sans-serif;font-size:23px;letter-spacing:.02em;text-transform:uppercase;line-height:1;}
+  .panel .pg{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#23211E;padding:2px 7px;border-radius:3px;display:inline-block;margin:6px 0;}
+  .panel .pf{font-size:12px;font-style:italic;color:var(--ink-soft);margin:4px 0 8px;}
+  .panel .pq{font-size:12px;line-height:1.5;border-left:2px solid var(--line-strong);padding-left:9px;color:var(--ink);}
+  .panel .pm{font-family:"JetBrains Mono",monospace;font-size:10px;color:var(--ink-soft);margin-top:8px;letter-spacing:.03em;}
+  .leg{margin-bottom:10px;}
+  .leg .lt{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:5px;}
+  .leg .row{display:flex;align-items:center;gap:8px;font-family:"JetBrains Mono",monospace;font-size:11px;margin:4px 0;cursor:pointer;}
+  .leg .row .dot{width:13px;height:13px;border-radius:50%;flex:none;border:1.5px solid var(--ink);}
+  .leg .row.off{opacity:.4;}
+  .leg .eg{display:flex;align-items:center;gap:8px;font-family:"JetBrains Mono",monospace;font-size:10.5px;margin:3px 0;}
+  .leg .eg.off{opacity:.35;}
+  .leg .eg svg{flex:none;}
+  .fams{margin-top:2px;}
+  .fams .f{font-family:"JetBrains Mono",monospace;font-size:10.5px;line-height:1.3;margin:1px 0;cursor:pointer;padding:2px 6px;border:1px solid transparent;border-radius:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .fams .f:hover{border-color:var(--line-strong);background:#FFFFFF;}
+  .fams .f b{color:var(--ink);}
+  .toggle{display:flex;align-items:center;gap:8px;font-family:"JetBrains Mono",monospace;font-size:11px;margin:10px 0 2px;cursor:pointer;}
+  .toggle .box{width:15px;height:15px;border:1.5px solid var(--ink);display:flex;align-items:center;justify-content:center;font-size:11px;}
+  .node circle{cursor:pointer;}
+  .node text.flet{font-family:"Bebas Neue",sans-serif;font-weight:400;fill:#23211E;text-anchor:middle;dominant-baseline:central;pointer-events:none;}
+  .node text.ccode{font-family:"JetBrains Mono",monospace;font-size:8px;fill:var(--ink-soft);text-anchor:middle;pointer-events:none;}
+  .node.dim{opacity:.12;}
+  .link.dim{opacity:.05;}
+  .nodelabel{font-family:"JetBrains Mono",monospace;font-size:9px;fill:var(--ink-soft);text-anchor:middle;pointer-events:none;opacity:0;}
+  .node.lblshow + .nodelabel,.nodelabel.show{opacity:1;}
+  @media (max-width:680px){.wrap{flex-direction:column;height:auto;}#graph{height:62vh;}aside{width:100%;border-left:none;border-top:1px solid var(--line-strong);}}
+  .panel .pa{font-size:12px;line-height:1.5;margin:5px 0 7px;color:var(--ink);}
+  .panel .pa b,.panel .pq b{font-family:inherit;}
+  #zoomctl{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;z-index:12;}
+  #zoomctl button{width:32px;height:32px;border:1px solid var(--line-strong);background:#fff;color:var(--ink);cursor:pointer;font-size:17px;line-height:1;font-family:inherit;border-radius:5px;box-shadow:1px 1px 0 rgba(0,0,0,.08);}
+  #zoomctl button:hover{background:var(--ink);color:#fff;}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">Brazil’s tax treaty network · technical services · graph by clause wording</div>
+  <h1>Who copies whom</h1>
+  <p class="sub">Each node is a tax treaty. The letter identifies its wording cohort (A, B, C etc.).</p>
+</header>
+<div class="wrap">
+  <svg id="graph"></svg>
+    <div id="zoomctl"><button onclick="zoomBy(1.3)" title="zoom in">+</button><button onclick="zoomBy(1/1.3)" title="zoom out">&#8722;</button><button onclick="fitView()" title="fit to screen">&#10530;</button></div>
+  <aside>
+    <div class="panel" id="panel">
+      <div class="pn" id="pn"></div>
+      <div class="pg" id="pg"></div>
+      <div class="pq" id="pq"></div>
+      <div class="pm" id="pm"></div>
+    </div>
+    <div class="leg">
+      <div class="lt">Edges</div>
+      <div class="eg"><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="#23211E" stroke-width="2.6"/></svg> identical wording</div>
+      <div class="eg"><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="#6E6A5E" stroke-width="1.8" stroke-dasharray="5,4"/></svg> near-identical wording</div>
+      <div class="eg"><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="#B0654E" stroke-width="2.4" stroke-linecap="round"/></svg> temporal evolution</div>
+      <div class="eg"><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="#C7A252" stroke-width="2" stroke-dasharray="5,3"/></svg> same mechanism but different wording</div>
+      <div class="eg"><svg width="34" height="6"><line x1="0" y1="3" x2="34" y2="3" stroke="#CBC7BB" stroke-width="1.2" stroke-dasharray="2,4"/></svg> same template, but different connector (may be translation issue)</div>
+    </div>
+    <div class="leg">
+      <div class="lt">Node border · status</div>
+      <div class="eg"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#E2DFD6" stroke="#23211E" stroke-width="1.5"/></svg> solid — in force</div>
+      <div class="eg"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#E2DFD6" stroke="#23211E" stroke-width="1.5" stroke-dasharray="3,2"/></svg> dashed — not in force (pending)</div>
+      <div class="eg"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#E2DFD6" stroke="#23211E" stroke-width="1.5" stroke-dasharray="1,2"/></svg> dotted — not in force (superseded)</div>
+      <div class="eg"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#E2DFD6" stroke="#23211E" stroke-width="1.5" stroke-dasharray="6,2,1,2"/></svg> dash-dot — other party blocked</div>
+      <div class="eg"><svg width="16" height="16"><circle cx="8" cy="8" r="6" fill="#E2DFD6" stroke="#C62828" stroke-width="2.5"/></svg> red — denounced</div>
+    </div>
+    <div class="leg fams">
+      <div class="lt">Wording cohorts · chronological (click)</div>
+      <div id="famleg"></div>
+    </div>
+    <div class="leg" style="margin-top:2px;">
+      <div class="lt">Annotation (click)</div>
+      <div class="eg" id="bacenleg" style="cursor:pointer;" title="Show / hide this border"><svg width="16" height="16"><circle cx="8" cy="8" r="6.5" fill="#F4C400"/><circle cx="8" cy="8" r="4.2" fill="#D6D2C6" stroke="#23211E" stroke-width="1"/></svg> Ministry of Finance Ordinances – BACEN concept</div>
+    </div>
+    <div class="toggle" id="tg1"><span class="box" id="tg1b">✓</span> show treaties with no clause</div>
+  </aside>
+</div>
+<script>
+// fam: A (§3→assist), B (em razão da, serv+assist), C (como remun., assist+serv), D (natureza/espécie), E (know-how), TS (Tcheca par), null=própria
+const FAM={"DK":"A","ES":"A","IT":"A","LU":"A","NO0":"A","CA":"A","IL":"A","UA":"A","IS":"A","DE":"B","EC":"B","CZ":"B","SK":"B","PY":"B","CL":"B","AR0":"C","IN0":"C","PE":"C","AR":"C","PH":"D","HU":"D","KR":"D","TR":"D","SE2":"D","NL":"E","CN":"F","PT2":"G","ZA":"G","MX":"G","RU":"G","BE":"H","VE":"I","TT":"J","CH":"K","SG":"K","AE":"K","NO2":"K","UY":"L","PL":"L","CO":"L","IN2":"L","GB":"M","JP":"N","FR":"N","AT":"N","FI":"N","SE0":"N","PT0":"N","BE0":"N","NO67":"N","SE65":"N","US":"N"};
+const FAMINFO={"A":{t:"Interprets the know-how language of Art. 12 (“experience acquired”) — includes Iceland (modern Art. 13 architecture)",col:"#C37A67",mem:["DK", "ES", "IT", "LU", "NO0", "CA", "IL", "UA", "IS"],range:"1974–2024"},"B":{t:"§3/§2-b → income arising from the provision of services (“provenientes / obtidos da prestação”)",col:"#5E938C",mem:["DE", "EC", "CZ", "SK", "PY", "CL"],range:"1975–2001"},"C":{t:"Sui generis / expanded definition of services — Argentina 1980 &amp; 2017, India 1988, Peru (each distinct)",col:"#A85C3C",mem:["AR0", "IN0", "PE", "AR"],range:"1980–2017"},"D":{t:"§3 Art. 12 → as remuneration for the provision of assistance &amp; services (“como remuneração pela prestação de”)",col:"#929CBA",mem:["PH", "HU", "KR", "TR", "SE2"],range:"1983–2019"},"E":{t:"§3 → in consideration of services (“em contraprestação de”)",col:"#C7A252",mem:["NL"],range:"1990"},"F":{t:"§3 → in return for services, uses “or” (“em contrapartida pela”)",col:"#94789A",mem:["CN"],range:"1991"},"G":{t:"§3 → by reason of the provision of services (“em razão da prestação de”)",col:"#A0A088",mem:["PT2", "ZA", "MX", "RU"],range:"2000–2004"},"H":{t:"§3 “targets” payments for assistance/services (“visam os pagamentos recebidos por”)",col:"#BC8597",mem:["BE"],range:"2002"},"I":{t:"§3 → for the provision of services — base wording (“pela prestação de”)",col:"#7E9B6B",mem:["VE"],range:"2005"},"J":{t:"Interprets the term “royalties” to include services (scope: “em razão da prestação de”)",col:"#6C7A9C",mem:["TT"],range:"2008"},"K":{t:"§3 Art. 12 → assistance only, remitted to royalties",col:"#B8923A",mem:["CH", "SG", "AE", "NO2"],range:"2018–2022"},"L":{t:"§3 Art. 13 / 12-A → assistance only, remitted to technical services",col:"#8C6E5A",mem:["UY", "PL", "CO", "IN2"],range:"2019–2022"},"M":{t:"Know-how clause naming neither technical assistance nor services — own wording (UK)",col:"#9E8B7A",mem:["GB"],range:"2022"},"N":{t:"No technical-services clause — payments follow Articles 7 and 14",col:"#BDB8AB",mem:["JP", "FR", "PT0", "BE0", "AT", "SE0", "FI", "NO67", "SE65", "US"],range:"1965–1996"}};
+const NOCL_IDS=new Set(['AT', 'BE0', 'FI', 'FR', 'JP', 'PT0', 'SE0', 'NO67', 'SE65', 'US']);
+// "Ministry of Finance Ordinances – BACEN concept": treaties whose source taxation of
+// technical services rests on the Brazilian MoF ordinances and the BACEN concept.
+// (Norway: the historical 1980 convention NO0; Belgium: the 2002 convention BE; Portugal: the 2000 convention PT2.)
+const BACEN=new Set(['BE','CA','CL','DK','DE','IL','IT','LU','NO0','PT2','ES']);
+const BACEN_COL='#F4C400';
+let bacenShow=true;
+const NODES=[
+ {id:"PY",n:"Paraguay (2000)",g:3,st:"blocked",fam:"R",q:"3º grupo (estende o Art. 12 §3). Protocolo: “Com referência ao Artigo 12, parágrafo 3: As disposições do parágrafo 3 do Artigo 12 se aplicam aos rendimentos provenientes da prestação de serviços e de assistência técnica.” Assinado 20/9/2000, aprovado no Brasil (DL 972/2003); não promulgado — contraparte não concluiu a ratificação. Redação near-identical à do Chile."},
+ // grupo 1 (sem cláusula)
+ {id:"JP",n:"Japan",g:1,st:"vig",fam:null,q:"Sem cláusula de serviços técnicos — segue o Art. 7 / Art. 13."},
+ {id:"FR",n:"France",g:1,st:"vig",fam:null,q:"Sem cláusula — segue o Art. 7 / Art. 14."},
+ {id:"AT",n:"Austria",g:1,st:"vig",fam:null,q:"Sem cláusula — segue o Art. 7 / Art. 14."},
+ {id:"FI",n:"Finland",g:1,st:"vig",fam:null,q:"Sem cláusula — segue o Art. 7 / Art. 14."},
+ {id:"SE0",n:"Sweden (≤2019)",g:1,st:"hist",fam:null,q:"Redação original sem cláusula — a equiparação veio só no Protocolo de 2019."},
+ {id:"SE65",n:"Sweden (1965)",g:1,st:"hist",fam:null,q:"Acordo de 1965, substituído pela Convenção de 1975. Sem cláusula de serviços técnicos."},
+ {id:"US",n:"United States (1967)",g:1,st:"blocked",fam:null,q:"Convenção assinada em 1967, jamais promulgada (Senado dos EUA não ratificou). Sem cláusula de serviços técnicos."},
+ {id:"PT0",n:"Portugal (1971)",g:1,st:"hist",fam:null,q:"Convenção original sem cláusula. Substituída pela de 2000."},
+ // grupo 2 (know-how, fam E)
+ {id:"DK",n:"Denmark",g:2,st:"vig",fam:"E",q:"A matriz (1974): “a expressão ‘experiência adquirida…’ inclui os rendimentos provenientes da prestação de assistência técnica e serviços técnicos.”"},
+ {id:"CA",n:"Canada",g:2,st:"vig",fam:"E",q:"Idêntica à matriz (Art. XII §3): “…a expressão ‘experiência adquirida…’ inclui os rendimentos provenientes da prestação de assistência técnica e serviços técnicos.”"},
+ {id:"NO0",n:"Norway (1980)",g:2,st:"hist",fam:"E",q:"Idêntica à matriz (know-how). Substituída pela Convenção de 2022 (passou à família A)."},
+ {id:"NO67",n:"Norway (1967)",g:1,st:"hist",fam:null,q:"Convenção de 1967, substituída pela de 1980. Sem cláusula de serviços técnicos."},
+ {id:"IT",n:"Italy",g:2,st:"vig",fam:"E",q:"Igual à matriz, mas a definição de royalties está no §4 (“mencionada no parágrafo 4 do Artigo 12”)."},
+ {id:"ES",n:"Spain",g:4,st:"vig",fam:"E",q:"Texto de know-how, com “compreende” no lugar de “inclui”. Reinterpretada por MAP (Art. 25(3)) para abranger serviços sem transferência de tecnologia — por isso 4º grupo."},
+ {id:"IL",n:"Israel",g:2,st:"vig",fam:"E",q:"Variante: “‘por informação concernente à experiência industrial…’ inclui os rendimentos originários da prestação…”"},
+ {id:"UA",n:"Ukraine",g:2,st:"vig",fam:"E",q:"Variante: “‘para informações referentes à experiência industrial…’ inclui os rendimentos obtidos com a prestação…”"},
+ {id:"LU",n:"Luxembourg",g:2,st:"vig",fam:"E",q:"Variante: “experiência adquirida ou a estudos…” inclui os rendimentos de assistência técnica e serviços técnicos."},
+ {id:"IS",n:"Iceland",g:5,st:"pend",fam:null,q:"5º grupo. Estrutura moderna: Artigo 13 (Remunerações por Serviços Técnicos) + Artigo 12 (royalties), onde a assistência técnica é DEFINIDA via “experiência adquirida” (know-how). Apesar de reusar a expressão do know-how, NÃO equivale aos tratados antigos do 2º grupo — estes não têm artigo de serviços. Redação própria."},
+ // grupo 3
+ {id:"ZA",n:"South Africa",g:3,st:"vig",fam:"B",q:"“…aplicar-se-ão a pagamentos de qualquer espécie recebidos em razão da prestação de serviços técnicos e assistência técnica.”"},
+ {id:"RU",n:"Russia",g:3,st:"vig",fam:"B",q:"Idêntica à África do Sul: “…em razão da prestação de serviços técnicos e assistência técnica.”"},
+ {id:"TR",n:"Türkiye",g:3,st:"vig",fam:"C",q:"“…aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.”"},
+ {id:"SE2",n:"Sweden (2019)",g:3,st:"vig",fam:"C",q:"Idêntica à Turquia: “…como remuneração pela prestação de assistência técnica e de serviços técnicos.” (Protocolo de Emenda 2019.)"},
+ {id:"HU",n:"Hungary",g:3,st:"vig",fam:"C",q:"“o disposto no §3 do Artigo XII aplica-se aos pagamentos de qualquer natureza recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.”"},
+ {id:"KR",n:"South Korea",g:3,st:"vig",fam:"C",q:"Igual à Hungria, mas “qualquer espécie” (não “natureza”), Art. XII."},
+ {id:"PH",n:"Philippines",g:3,st:"vig",fam:"C",q:"Igual à família D (“qualquer natureza”), sem repetir “do Artigo XII”."},
+ {id:"BE",n:"Belgium",g:3,st:"vig",fam:null,q:"Redação própria — única com “visam”: “as disposições do artigo 12, §3, visam os pagamentos recebidos por assistência técnica ou pelo fornecimento de serviços técnicos.” (Conv. Adic. 2002.)"},
+ {id:"BE0",n:"Belgium (1972)",g:3,st:"hist",fam:null,q:"Redação original (via Portaria MF 271/1974). A cláusula explícita veio na Convenção Adicional de 2002."},
+ {id:"CN",n:"China",g:3,st:"vig",fam:"X",q:"Redação própria — única com “ou”: “…aplicar-se-á a quaisquer pagamentos recebidos em contrapartida pela prestação de assistência técnica ou serviços técnicos.”"},
+ {id:"NL",n:"Netherlands",g:3,st:"vig",fam:"N",q:"Redação própria: “…aplica-se a qualquer espécie de pagamento recebido em contraprestação de serviços e assistência técnica.”"},
+ {id:"CZ",n:"Czech Rep.",g:3,st:"vig",fam:"R",q:"(Brasil–Tchecoslováquia) “…aplica-se aos rendimentos obtidos pela prestação de assistência técnica e de serviços técnicos.”"},
+ {id:"SK",n:"Slovakia",g:3,st:"vig",fam:"R",q:"Mesma Convenção Brasil–Tchecoslováquia, por sucessão — identical wording à Rep. Tcheca."},
+ {id:"CL",n:"Chile",g:3,st:"vig",fam:"R",q:"Redação própria: “…aplicam-se aos rendimentos provenientes da prestação de serviços técnicos e assistência técnica.”"},
+ {id:"MX",n:"Mexico",g:3,st:"vig",fam:"B",q:"Redação própria: “…se aplicam a qualquer espécie de pagamento recebido pela prestação de assistência técnica e serviços técnicos.”"},
+ {id:"VE",n:"Venezuela",g:3,st:"vig",fam:"V",q:"Redação própria: “As disposições do §3 do Artigo 12 da Convenção se aplicam a qualquer espécie de pagamentos recebidos pela prestação de serviços técnicos e de assistência técnica.”"},
+ {id:"PT2",n:"Portugal (2000)",g:3,st:"vig",fam:"B",q:"Redação própria: “…o nº 3 do Artigo 12º se aplica a qualquer espécie de pagamento recebido em razão da prestação de assistência técnica e de serviços técnicos.”"},
+ {id:"EC",n:"Ecuador",g:3,st:"vig",fam:"R",q:"Redação própria com lista ampliada: “…serviços técnicos e de assistência técnica, científica, administrativa ou semelhante.”"},
+ {id:"DE",n:"Germany",g:3,st:"nao",fam:null,q:"Denunciada. Única a remeter ao §2-b (não §3): “as disposições do §2-b do artigo 12 aplicar-se-ão igualmente aos rendimentos da prestação de assistência técnica e serviços técnicos.”"},
+ // grupo 4 (casos especiais, próprias)
+ {id:"AR",n:"Argentina",g:4,st:"vig",fam:null,q:"Redação própria mais ampla — alcança notícias internacionais e (Protocolo 2017) define serviços, incluindo estruturas automatizadas com claro conteúdo tecnológico."},
+ {id:"AR0",n:"Argentina (1980)",g:4,st:"hist",fam:null,q:"Redação original: §3 do Art. XII já alcançava serviços/assistência técnica, “científica, administrativa ou semelhante”, sem a definição autônoma de 2017."},
+ {id:"IN0",n:"India (1992)",g:4,st:"hist",fam:"C",q:"Redação própria ampla: “assistência ou serviços de natureza gerencial, administrativa, científica, técnica ou de consultoria”. Renegociada em 2022 (passou à família A)."},
+ {id:"PE",n:"Peru",g:4,st:"vig",fam:"P",q:"Redação própria — única a estender a “serviços digitais e empresariais, inclusive às consultorias”."},
+ {id:"TT",n:"Trinidad & Tobago",g:4,st:"vig",fam:null,q:"Redação própria — única a interpretar o termo “royalties”: “o termo ‘royalties’ será considerado como incluindo … assistência técnica e serviços técnicos.”"},
+ // grupo 5 (fam A em Art.12)
+ {id:"CH",n:"Switzerland",g:5,st:"vig",fam:"A",q:"Família A, Artigo 12: “as disposições do §3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.” (assist. téc. = royalty)"},
+ {id:"SG",n:"Singapore",g:5,st:"vig",fam:"A",q:"Família A, Artigo 12 — frase idêntica a Suíça e EAU. Assistência técnica remetida ao Art. 12 (royalty)."},
+ {id:"AE",n:"UAE",g:5,st:"vig",fam:"A",q:"Família A, Artigo 12 — frase idêntica a Suíça e Singapura. Alíquota 15%."},
+ {id:"NO2",n:"Norway (2022)",g:5,st:"vig",fam:"A",q:"Nova Convenção: Art. 12-A para serviços técnicos; assistência técnica remetida ao Art. 12 (royalty). Antes era family E (1967)."},
+ {id:"GB",n:"United Kingdom",g:5,st:"pend",fam:null,q:"Redação própria — não usa “assistência técnica”: tudo é “remunerações por serviços técnicos” (Art. 13 §3), alíquota regressiva 8→4→0% e cláusula MFN."},
+ // grupo 6 (fam A em Art.13/12-A)
+ {id:"UY",n:"Uruguay",g:6,st:"vig",fam:"St",q:"Família A, Artigo 13: “…aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.” (assist. téc. = serviço técnico)"},
+ {id:"PL",n:"Poland",g:6,st:"vig",fam:"St",q:"Família A, Artigo 13 — frase idêntica a Uruguai e Colômbia."},
+ {id:"CO",n:"Colombia",g:6,st:"pend",fam:"St",q:"Família A, Artigo 13 — frase idêntica a Uruguai e Polônia. Pendente de ratificação."},
+ {id:"IN2",n:"India (2022)",g:6,st:"vig",fam:"St",q:"Família A, Artigo 12-A — mesma frase, no artigo de serviços técnicos. Protocolo de 2022."}
+];
+const FAMS={
+ A:{c:"#000",t:"remittance to royalties (Art. 12 §3)",d:"Switzerland, Singapore, UAE, Norway 2022."},
+ St:{c:"#000",t:"remittance to technical services (Art. 13/12-A §3)",d:"Uruguay, Poland, Colombia (Art. 13); India 2022 (Art. 12-A)."},
+ C:{c:"#000",t:"“as remuneration for the provision of”",d:"Korea = Türkiye = Sweden (2019), identical; Hungary/Philippines differ only in nature/kind; India 1992 adds an employee exclusion."},
+ B:{c:"#000",t:"“by reason of the provision of”",d:"Mexico, Portugal (2000), Russia, South Africa (object order varies)."},
+ P:{c:"#000",t:"“for the provision of” (+ digital & business services)",d:"Peru — the only clause that also covers digital and business services, including consulting."},
+ V:{c:"#000",t:"“for the provision of” (base)",d:"Venezuela — technical services and technical assistance only."},
+ N:{c:"#000",t:"“in consideration of” (em contraprestação de)",d:"Netherlands — unique connector."},
+ X:{c:"#000",t:"“in return for the provision of” (em contrapartida pela)",d:"China — unique connector."},
+ E:{c:"#000",t:"know-how (experience acquired)",d:"Danish matrix (1974); Canada, Norway (1980), Italy; variants Spain, Israel, Ukraine, Luxembourg."},
+ R:{c:"#000",t:"income from the provision",d:"Chile, Paraguay, Ecuador, Czechoslovakia (Czech Rep./Slovakia)."}
+};
+const LINKS=[
+ // remissão a SERVIÇO TÉCNICO (§3 do Art. 13 / 12-A)
+ ["UY","PL","id"],["UY","CO","id"],["PL","CO","id"],
+ // remissão a ROYALTIES (§3 do Art. 12)
+ ["CH","SG","id"],["CH","AE","id"],["SG","AE","id"],
+ 
+ ["IN2","UY","near"],["NO2","CH","id"],
+ // fam B / C / D
+ ["ZA","RU","id"],
+ ["TR","SE2","id"],
+ ["HU","KR","near"],["HU","PH","near"],["KR","PH","near"],
+ // fam E — núcleo idêntico
+ ["DK","CA","id"],["DK","NO0","id"],["CA","NO0","id"],
+ // fam E — variantes (near-identical)
+ ["DK","IT","near"],["DK","ES","near"],["DK","IL","near"],["DK","UA","near"],["DK","LU","near"],
+ // Tcheca par
+ ["CZ","SK","id"],["CZ","CL","near"],["EC","CL","near"],["DE","CL","near"],["CL","PY","near"],
+ // temporal evolution (mudou de família)
+ ["NO67","NO0","evo"],["SE65","SE0","evo"],
+ ["NO0","NO2","evo"],["IN0","IN2","evo"],["AR0","AR","evo"],["BE0","BE","evo"],["SE0","SE2","evo"],["PT0","PT2","evo"],
+ // same mechanism (know-how), redação distinta — não funde famílias
+ ["DK","IS","mec"],["DK","GB","mec"],
+ ["KR","TR","id"],["MX","PT2","id"],["RU","MX","near"],["RU","NL","var"],["RU","CN","var"],["KR","RU","var"],["RU","VE","var"],["VE","PE","var"],["NL","CN","var"],
+ ];
+// union-find for families (id+near only)
+const ART_BY_G={1:"Articles 7 and 14 (no technical-services article)",2:"Article 12 (Royalties)",3:"Article 12 (Royalties), paragraph 3",4:"Article 12 (Royalties)",5:"Article 13 (Fees for Technical Services)",6:"Article 13 (Fees for Technical Services)"};
+const ART_OVR={IN2:"Article 12-A (Fees for Technical Services)",TT:"Article 12 (Royalties)",ES:"Article 12 (Royalties)"};
+function artOf(d){return ART_OVR[d.id]||ART_BY_G[d.g];}
+const Q={"JP": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "FR": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "AT": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "FI": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "SE0": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "PT0": "Não há cláusula específica de serviços técnicos; aplicam-se os Artigos 7 e 14 da Convenção.", "DK": "Ad/Artigo 12, parágrafo 3 A expressão \"por informações correspondentes à experiência adquirida no setor industrial, comercial ou científico\" mencionada no parágrafo 3 do Artigo 12, inclui os rendimentos provenientes da prestação de serviços técnicos e assistência técnica.", "CA": "Com referência ao Artigo XII, parágrafo 3 — a expressão \"por informações correspondentes à experiência adquirida no setor industrial, comercial ou científico\" mencionada no parágrafo 3 do artigo XII inclui os rendimentos provenientes da prestação de assistência técnica e serviços técnicos.", "NO0": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que a expressão \"por informações correspondentes à experiência adquirida no setor industrial, comercial ou científico\", mencionado no parágrafo 3 do Artigo 12, inclui os rendimentos provenientes da prestação de assistência técnica e serviços técnicos.", "IT": "Com referência ao Artigo 12, parágrafo 4 A expressão \"por informações correspondentes à experiência adquirida no setor industrial, comercial ou científico\" mencionada no parágrafo 4 do Artigo 12 inclui os rendimentos provenientes da prestação de assistência técnica e serviços técnicos.", "IL": "Com referência ao Artigo 12, parágrafo 3º Fica entendido que a expressão \"por informação concernente à experiência industrial, comercial ou científica\" mencionada no parágrafo 3º do Artigo 12 inclui os rendimentos originários da prestação de assistência técnica e de serviços técnicos.", "UA": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que a expressão “para informações referentes à experiência industrial, comercial ou científica” mencionada no parágrafo 3 do Artigo 12 inclui os rendimentos obtidos com a prestação de assistência técnica e serviços técnicos.", "LU": "Ad Artigo 12, parágrafo 3 A expressão \"por informações correspondentes à experiência adquirida ou a estudos no setor industrial, comercial ou científico\", mencionada no parágrafo 3 do artigo 12 inclui os rendimentos de assistência técnica e serviços técnicos.", "ES": ", § 3º A expressão \"por informações correspondentes à experiência adquirida no setor industrial comercial ou científico\", mencionada no § 3º do Artigo 12, compreende os rendimentos provenientes da prestação de serviços técnicos e assistência técnica.", "BE": "Ad Artigo 12, parágrafos 2 e 3: Fica entendido que as disposições do artigo 12, parágrafo 3, visam os pagamentos recebidos por assistência técnica ou pelo fornecimento de serviços técnicos.", "PH": "Com referência ao Artigo XII, parágrafo 3 — O disposto no parágrafo 3 aplica-se aos pagamentos de qualquer natureza recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.", "HU": "Com referência ao Artigo XII, parágrafo 3 Fica entendido que o disposto no parágrafo 3 do Artigo XII aplica-se aos pagamentos de qualquer natureza recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.", "CZ": "Com referência ao Artigo 12, parágrafo 3 aplica-se aos rendimentos obtidos pela prestação de assistência técnica e de serviços técnicos.", "SK": "Com referência ao Artigo 12, parágrafo 3 aplica-se aos rendimentos obtidos pela prestação de assistência técnica e de serviços técnicos.", "KR": "Com referência ao Artigo XII, parágrafo 3 Fica entendido que o disposto no parágrafo 3 do Artigo XII aplica-se aos pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.", "NL": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que o disposto no parágrafo 3 do Artigo 12 aplica-se a qualquer espécie de pagamento recebido em contraprestação de serviços e assistência técnica.", "CN": "Com referência ao Artigo 12, parágrafo 3 Entende-se que o disposto no parágrafo 3 do Artigo 12 aplicar-se-á a quaisquer pagamentos recebidos em contrapartida pela prestação de assistência técnica ou de serviços técnicos.", "PT2": "Com referência ao Artigo 12º, nº 3 Fica entendido que as disposições do nº 3 do Artigo 12º se aplicam a qualquer espécie de pagamento recebido em razão da prestação de assistência técnica e de serviços técnicos.", "CL": "Com referência ao Artigo 12, parágrafo 3 As disposições do parágrafo 3 do Artigo 12 aplicam-se aos rendimentos provenientes da prestação de serviços técnicos e assistência técnica.", "MX": "Com referência ao parágrafo 3 do Artigo 12 a) fica entendido que as disposições do parágrafo 3 do Artigo 12 se aplicam a qualquer espécie de pagamento recebido em razão da prestação de assistência técnica e de serviços técnicos; e b) no caso de o Brasil acordar com qualquer outro país, após a data da assinatura da presente Convenção, um dispositivo mediante o qual os rendimentos provenientes da prestação de serviços técnicos que não impliquem um direito aos que se refere o parágrafo de referência se considerem como rendimentos aos quais se aplica o Artigo 7 ou 14, dita disposição aplicar-se-á automaticamente em lugar do estabelecido no inciso anterior deste Protocolo, no momento da entrada em vigor da Convenção que a contenha.", "ZA": "Com referência ao Artigo 12 Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos em razão da prestação de serviços técnicos e assistência técnica.", "RU": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos em razão da prestação de serviços técnicos e assistência técnica.", "VE": "Com referência ao Artigo 12, parágrafo 3 As disposições do parágrafo 3 do Artigo 12 da Convenção se aplicam a qualquer espécie de pagamentos recebidos pela prestação de serviços técnicos e de assistência técnica.", "TR": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.", "SE2": "Ad/Artigo XII Fica entendido que as disposições do parágrafo 3 do Artigo XII aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica e de serviços técnicos.", "EC": "Com referência ao Artigo XII, parágrafo 3 Fica entendido que o disposto no parágrafo 3 do Artigo XII aplica-se aos rendimentos provenientes da prestação de serviços técnicos e de assistência técnica, científica, administrativa ou semelhante.", "DE": "Com referência ao artigo 12: Fica entendido que as disposições do parágrafo 2-b do artigo 12 aplica-se-ão igualmente aos rendimentos provenientes da prestação de assistência técnica e serviços técnicos.", "PY": "Com referência ao Artigo 12, parágrafo 3 As disposições do parágrafo 3 do Artigo 12 se aplicam aos rendimentos provenientes da prestação de serviços e de assistência técnica.", "PE": "Com referência ao Artigo 12 (“Royalties”), parágrafo 3: As disposições do parágrafo 3 do Artigo 12 se aplicam a qualquer espécie de pagamento recebido pela prestação de serviços técnicos e de assistência técnica. O disposto neste item se aplica também aos serviços digitais e empresariais, inclusive às consultorias.", "TT": "o termo “royalties” será considerado como incluindo qualquer espécie de pagamento recebido em razão da prestação de assistência técnica e de serviços técnicos.", "IN0": "Com referência ao Artigo 12, parágrafo 3 Fica entendido que o disposto no parágrafo 3 do Artigo 12 aplica-se aos pagamentos de qualquer espécie feitos a qualquer pessoa que não seja um empregado da pessoa pagadora, como remuneração pela prestação de assistência ou serviços de natureza gerencial, administrativa, científica, técnica ou de consultoria.", "AR": "(Protocolo de 2017) Considera-se prestação de serviços técnicos e de assistência técnica a execução de serviços que dependam de conhecimentos técnicos especializados ou que envolvam assistência administrativa ou prestação de consultoria, realizada por profissionais independentes ou com vínculo empregatício ou, ainda, resultante de estruturas automatizadas com claro conteúdo tecnológico; e a assessoria permanente prestada pelo cedente de processo ou fórmula secreta ao cessionário, mediante técnicos, desenhos, estudos, instruções ou outros serviços similares, os quais possibilitem a efetiva utilização do processo ou fórmula cedidos.", "AR0": "Com referência ao Artigo XII, parágrafo 3 Fica estabelecido que as disposições do parágrafo 3 do Artigo XII aplicam-se às rendas provenientes do uso ou da concessão do uso de notícias Internacionais e da prestação de serviços técnicos e de assistência técnica, científica, administrativa ou semelhante.", "CH": "Com referência ao parágrafo 3 do Artigo 12: Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "SG": "Com referência ao Artigo 12 Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "AE": "Com referência ao Artigo 12 Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "NO2": "Com referência ao parágrafo 3 do Artigo 12: Fica entendido que as disposições do parágrafo 3 do Artigo 12 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "GB": "Com referência ao Artigo 12 — Fica entendido que, no caso do Brasil, ao classificar como “royalties” pagamentos recebidos como remuneração por informações (know-how) relativas à experiência adquirida no setor industrial, comercial ou científico, o âmbito das informações de natureza industrial, comercial ou científica não está limitado àquelas decorrentes exclusivamente de experiências anteriores.", "IS": "Com referência ao Artigo 12 Fica entendido que a expressão \"por informações relativas à experiência adquirida no setor industrial, comercial ou científico\" abrange a assistência técnica, definida como a assistência prestada pelo cedente de processo ou fórmula secreta, mediante técnicos, desenhos, estudos, instruções enviadas ao país e outras atividades que possibilitem a efetiva utilização do processo ou fórmula cedidos.", "UY": "Com referência ao Artigo 13 Fica entendido que as disposições do parágrafo 3 do Artigo 13 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "PL": "Com referência ao Artigo 13 Fica entendido que as disposições do parágrafo 3 do Artigo 13 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "CO": "Com referência ao Artigo 13: a) Fica entendido que as disposições do parágrafo 3 do Artigo 13 aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "IN2": "Com referência ao Artigo 12-A Fica entendido que as disposições do parágrafo 3 do Artigo 12-A aplicar-se-ão a pagamentos de qualquer espécie recebidos como remuneração pela prestação de assistência técnica.", "BE0": "A Convenção de 1972 não traz cláusula específica de serviços técnicos no texto nem no protocolo.", "NO67": "Não há cláusula específica de serviços técnicos (Convenção de 1967, substituída pela de 1980). O §3 do Artigo sobre royalties inclui \"por informação concernente a experiência industrial, comercial ou científica\" (know-how), mas não há equiparação de assistência ou serviços técnicos a royalties; tais serviços seguem o Artigo VII.", "SE65": "Não há cláusula específica de serviços técnicos (Acordo de 1965, substituído pela Convenção de 1975). A definição de \"royalty\" alcança apenas direito autoral, patente, desenho, processo ou fórmula secreta e marca de fábrica — sem \"experiência adquirida\" e sem serviços técnicos.", "US": "Não há cláusula específica de serviços técnicos (Convenção assinada em 13/03/1967, jamais promulgada). O Art. 14(2)(b) inclui \"information concerning industrial or scientific knowledge, experience, or skill\" (know-how) na definição de royalties, mas não há cláusula de serviços técnicos."};
+const KH=new Set(["DK","CA","NO0","IT","IL","UA","LU","ES","IS","GB"]);
+const NOCL=new Set(["JP","FR","AT","FI","SE0","PT0","BE0","NO67","SE65","US"]);
+function mecOf(d){if(NOCL.has(d.id))return "none";if(KH.has(d.id))return "kh";if(d.id==="TT")return "tt";return "ex";}
+const MECD={kh:"Interprets the “experience acquired” (know-how) language of Article 12 to include technical services / technical assistance.",ex:"Extends the paragraph-3 rule (of Article 12 / 13 / 12-A) to technical services / technical assistance.",none:"No specific clause; technical services follow Articles 7 and 14.",tt:"Interprets the term “royalties” (Article 12) to include technical services / technical assistance."};
+function MECTXT(d){return MECD[mecOf(d)];}
+const parent={}; NODES.forEach(n=>parent[n.id]=n.id);
+function find(x){while(parent[x]!==x){parent[x]=parent[parent[x]];x=parent[x];}return x;}
+function uni(a,b){parent[find(a)]=find(b);}
+LINKS.forEach(([s,t,ty])=>{if(ty!=='evo'&&ty!=='mec'&&ty!=='var')uni(s,t);});
+const compOf={}; NODES.forEach(n=>compOf[n.id]=find(n.id));
+
+const svg=d3.select("#graph"), W=()=>document.getElementById('graph').clientWidth, H=()=>document.getElementById('graph').clientHeight;
+let nodes=NODES.map(d=>({...d})), links=LINKS.map(d=>({source:d[0],target:d[1],type:d[2]}));
+const linkSel0=()=>links;
+const g=svg.append("g");
+const linkG=g.append("g").attr("fill","none");
+const nodeG=g.append("g");
+const labelG=g.append("g");
+const zoom=d3.zoom().scaleExtent([0.25,5]).on("zoom",e=>g.attr("transform",e.transform));
+svg.call(zoom).on("dblclick.zoom",null);
+function zoomBy(fac){svg.transition().duration(200).call(zoom.scaleBy,fac);}
+function fitView(){
+  const ns=sim.nodes(); if(!ns.length)return;
+  const xs=ns.map(d=>d.x),ys=ns.map(d=>d.y);
+  if(xs.some(v=>v==null||isNaN(v)))return;
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const w=W(),h=H(),pad=40;
+  const bw=Math.max(maxx-minx,20),bh=Math.max(maxy-miny,20);
+  const k=Math.min((w-2*pad)/bw,(h-2*pad)/bh,2.4);
+  const cx=(minx+maxx)/2,cy=(miny+maxy)/2;
+  svg.transition().duration(450).call(zoom.transform,d3.zoomIdentity.translate(-cx*k,-cy*k).scale(k));
+}
+setTimeout(fitView,1500);
+
+let showNoClause=true;
+const R=d=>({hist:13,pend:14}[d.st]||16);
+
+const sim=d3.forceSimulation(nodes)
+  .force("link",d3.forceLink(links).id(d=>d.id).distance(l=>l.type==='id'?52:l.type==='near'?78:l.type==='var'?120:60).strength(l=>l.type==='id'?.9:l.type==='near'?.5:.6))
+  .force("charge",d3.forceManyBody().strength(-240))
+  .force("center",d3.forceCenter().x(0).y(0))
+  .force("collide",d3.forceCollide(d=>R(d)+8))
+  .force("x",d3.forceX(0).strength(.07))
+  .force("y",d3.forceY(0).strength(.08));
+
+let link=linkG.selectAll("line"), node=nodeG.selectAll("g"), label=labelG.selectAll("text");
+function draw(){
+  link=linkG.selectAll("line").data(links,d=>d.source.id+d.target.id).join("line")
+    .attr("class","link")
+    .attr("stroke-width",d=>d.type==='id'?2.6:d.type==='near'?1.8:d.type==='mec'?2:d.type==='var'?1.2:2.4)
+    .attr("stroke-dasharray",d=>d.type==='near'?"5,4":d.type==='mec'?"5,3":d.type==='var'?"2,4":null)
+    .attr("stroke-linecap",d=>d.type==='evo'?"round":null)
+    .style("stroke",d=>d.type==='evo'?"#B0654E":d.type==='mec'?"#C7A252":d.type==='var'?"#CBC7BB":d.type==='near'?"#6E6A5E":"#23211E");
+  node=nodeG.selectAll("g.node").data(nodes,d=>d.id).join(enter=>{
+      const ng=enter.append("g").attr("class","node").call(drag(sim)).on("click",(e,d)=>select(d.id));
+      ng.append("circle").attr("class","bacenring");
+      ng.append("circle").attr("class","main");
+      ng.append("text").attr("class","flet");
+      ng.append("text").attr("class","ccode");
+      return ng;
+    });
+  node.select("circle.bacenring")
+    .attr("r",d=>(BACEN.has(d.id)&&bacenShow)?R(d)+3.5:0)
+    .attr("fill",d=>(BACEN.has(d.id)&&bacenShow)?BACEN_COL:"none")
+    .style("cursor",d=>BACEN.has(d.id)?"pointer":null)
+    .on("click",(e,d)=>{if(BACEN.has(d.id)){e.stopPropagation();toggleBacen();}});
+  node.select("circle.main").attr("r",R).attr("fill",d=>FAM[d.id]?FAMINFO[FAM[d.id]].col:(NOCL_IDS.has(d.id)?"#ECEAE2":"#D6D2C6"))
+    .attr("stroke-width",d=>d.st==='nao'?2.5:1.5)
+    .attr("stroke",d=>d.st==='nao'?"#C62828":"#23211E")
+    .attr("stroke-dasharray",d=>d.st==='pend'?"3,2":d.st==='hist'?"1,2":d.st==='blocked'?"6,2,1,2":null);
+  node.select("text").attr("font-size",d=>R(d)>14?11:9.5).text(d=>d.id.replace(/[0-9]/g,''));
+  label=labelG.selectAll("text").data(nodes,d=>d.id).join("text").attr("class","nodelabel").text(d=>d.n).attr("dy",d=>R(d)+11);
+}
+draw();
+sim.on("tick",()=>{
+  link.attr("x1",d=>d.source.x).attr("y1",d=>d.source.y).attr("x2",d=>d.target.x).attr("y2",d=>d.target.y);
+  node.attr("transform",d=>`translate(${d.x},${d.y})`);
+  label.attr("transform",d=>`translate(${d.x},${d.y})`);
+});
+function resize(){svg.attr("viewBox",[-W()/2,-H()/2,W(),H()]);sim.force("center").x(0).y(0);sim.alpha(.3).restart();setTimeout(fitView,350);}
+window.addEventListener("resize",resize); resize();
+
+function drag(sim){
+  return d3.drag()
+    .on("start",(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+    .on("drag",(e,d)=>{d.fx=e.x;d.fy=e.y;})
+    .on("end",(e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;});
+}
+
+let selected=null;
+function select(id){
+  selected = (selected===id)?null:id;
+  highlight();
+  const d=NODES.find(n=>n.id===id);
+  if(selected){
+    document.getElementById('panel').classList.add('show');
+    document.getElementById('pn').textContent=d.n;
+    const L=FAM[d.id];const pg=document.getElementById('pg');pg.style.display='inline-block';
+    if(L){pg.textContent='Cohort '+L+' · '+FAMINFO[L].range;pg.style.background=FAMINFO[L].col;}
+    else{pg.textContent='no clause';pg.style.background='#CFCABE';}
+    document.getElementById('pq').textContent=(Q[d.id]||'—');
+    document.getElementById('pm').textContent={vig:"In force",hist:"Historical / superseded",nao:"Denounced",pend:"Pending promulgation",blocked:"Other party blocked"}[d.st];
+  } else document.getElementById('panel').classList.remove('show');
+}
+function highlight(){
+  if(!selected){node.classed("dim",false);link.classed("dim",false);label.classed("show",false);return;}
+  const fam=FAM[selected];
+  const inFam=fam?new Set(NODES.filter(n=>FAM[n.id]===fam).map(n=>n.id)):new Set([selected]);
+  links.forEach(l=>{if((l.type==='evo'||l.type==='var')&&(l.source.id===selected||l.target.id===selected)){inFam.add(l.source.id);inFam.add(l.target.id);}});
+  node.classed("dim",d=>!inFam.has(d.id));
+  label.classed("show",d=>inFam.has(d.id));
+  link.classed("dim",d=>!(inFam.has(d.source.id)&&inFam.has(d.target.id)));
+}
+// toggles the yellow BACEN border on/off — it removes the yellow ring, not the countries
+function toggleBacen(){
+  bacenShow=!bacenShow;
+  node.select("circle.bacenring")
+    .attr("r",d=>(BACEN.has(d.id)&&bacenShow)?R(d)+3.5:0)
+    .attr("fill",d=>(BACEN.has(d.id)&&bacenShow)?BACEN_COL:"none");
+  const lg=document.getElementById('bacenleg'); if(lg) lg.classList.toggle('off',!bacenShow);
+}
+svg.on("click",e=>{if(e.target.tagName==='svg'){selected=null;highlight();document.getElementById('panel').classList.remove('show');}});
+
+// family legend
+const FAMLBL={A:"know-how",B:"income from provision",C:"sui generis",D:"as remuneration",E:"in consideration",F:"in return for",G:"by reason of",H:"targets payments",I:"for the provision",J:"term “royalties”",K:"assist. → royalties",L:"assist. → tech. services",M:"no assist. named",N:"no clause"};
+const fl=document.getElementById('famleg');
+Object.keys(FAMINFO).forEach(L=>{
+  const f=FAMINFO[L];const d=document.createElement('div');d.className="f";
+  d.title=f.range+' — '+f.t;
+  d.innerHTML=`<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${f.col};border:1.5px solid var(--ink);vertical-align:-1px;margin-right:6px;"></span><b>${L}</b> · ${FAMLBL[L]||f.range}`;
+  d.onclick=()=>select(f.mem[0]);
+  fl.appendChild(d);
+});
+document.getElementById('bacenleg').onclick=()=>toggleBacen();
+document.getElementById('tg1').onclick=()=>{showNoClause=!showNoClause;document.getElementById('tg1b').textContent=showNoClause?"✓":"";applyFilter();};
+function applyFilter(){
+  const vis=new Set(NODES.filter(n=>showNoClause||!NOCL_IDS.has(n.id)).map(n=>n.id));
+  nodes=NODES.filter(n=>vis.has(n.id)).map(o=>{const ex=sim.nodes().find(x=>x.id===o.id);return ex||{...o};});
+  links=LINKS.filter(([s,t])=>vis.has(s)&&vis.has(t)).map(d=>({source:d[0],target:d[1],type:d[2]}));
+  sim.nodes(nodes);sim.force("link").links(links);draw();sim.alpha(.6).restart();setTimeout(fitView,700);
+  if(selected&&!vis.has(selected)){selected=null;document.getElementById('panel').classList.remove('show');}
+  highlight();
+}
+</script>
+</body>
+</html>
